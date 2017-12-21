@@ -1,4 +1,3 @@
-from datetime import datetime
 from io import BytesIO
 import os
 import random
@@ -18,6 +17,7 @@ from imgurpython import ImgurClient
 TEXT_COLOR = (255, 255, 255)
 SHADOW_COLOR = (0, 0, 0)
 MAX_LETTERS_PER_LINE = 80
+MAX_UPLOAD_TRIES = 20
 FILENAME = 'gwcoep.jpg'
 
 # Setting up various variables used for API access
@@ -110,7 +110,7 @@ image.save(FILENAME)
 
 # Upload the image, trying again if need be
 uploaded = False
-starting_time = datetime.now().minute
+tries = 0
 while not uploaded:
     try:
         imgur = ImgurClient(IMGUR_ID, IMGUR_SECRET)
@@ -118,7 +118,8 @@ while not uploaded:
         uploaded = True
     except:
         # Imgur's over capacity, so try again later
-        if datetime.now().minute > starting_time + 20:
+        tries += 1
+        if tries == MAX_UPLOAD_TRIES:
             # If we've been trying too long, we give up
             sys.exit()
         time.sleep(30)
