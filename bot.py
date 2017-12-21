@@ -57,9 +57,9 @@ reddit = Reddit(client_id=REDDIT_ID,
 for gw_comment in reddit.subreddit('gonewild').comments():
     comment = gw_comment.body
     comment_url = gw_comment.permalink
-    if len(comment.split()) > 2 and has_naughty(comment):
-        # If the comment is at least 3 words long, and has a 'naughty' word,
-        # we call that acceptable, and select that as our comment
+    if 30 > len(comment.split()) > 2 and has_naughty(comment):
+        # If the comment is not too long and not too short, and has a 'naughty'
+        # word, we call that acceptable, and select that as our comment
         break
 
 # Gets a recent image from /r/earthporn
