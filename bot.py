@@ -38,12 +38,40 @@ FONT_FILE = 'fonts/' + random.choice(FONTS)
 with open('naughty-words.txt', 'r') as naughty_file:
     NAUGHTY_WORDS = set(naughty_file.read().split())
 
-# Returns whether the string has a single word we consider "naughty"
-def has_naughty(sentence):
-    for word in sentence.split():
-        if word.lower() in NAUGHTY_WORDS:
-            return True
-    return False
+# Return the formatted version of a comment, with line breaks in the
+# appropriate places, or an empty string if the comment is not suitable
+def format_comment(comment, image_width, font):
+    # If the comment is too long or too short, we reject it
+    if len(comment.split()) > 30 or len(comment.split()) < 2:
+        return ""
+
+    # Next, we have to make sure the comment contains a bad word
+    found_bad_word = False
+    for word in comment.split():
+        if word in NAUGHTY_WORDS:
+            found_bad_word = True
+            break
+            found_bad_word = True
+            break
+    if not found_bad_word:
+        return ""
+
+    # Breaks up the comment onto different lines
+    letters_per_line = MAX_LETTERS_PER_LINE
+    message = '\n'.join(textwrap.wrap(comment, letters_per_line))
+    msg_width, msg_height = font.getsize(message)
+    # Make sure the writing doesn't overflow the image
+    while msg_width > image_width and letters_per_line > 30:
+        letters_per_line -= 1
+        message = '\n'.join(textwrap.wrap(comment, letters_per_line))
+        msg_width, msg_height = font.getsize(message)
+
+    # If we can't get the text to fit on the image, we return an empty string
+    # to signify the comment shouldn't be used
+    if msg_width > image_width:
+        return ""
+    else:
+        return message
 
 # Set up the Reddit instance
 reddit = Reddit(client_id=REDDIT_ID,
@@ -51,16 +79,6 @@ reddit = Reddit(client_id=REDDIT_ID,
                 user_agent=REDDIT_USER_AGENT,
                 username=REDDIT_USERNAME,
                 password=REDDIT_PASSWORD)
-
-# Go through the recent comments from /r/gonewild until we find one that's
-# acceptable for our purposes
-for gw_comment in reddit.subreddit('gonewild').comments():
-    comment = gw_comment.body
-    comment_url = gw_comment.permalink
-    if 30 > len(comment.split()) > 2 and has_naughty(comment):
-        # If the comment is not too long and not too short, and has a 'naughty'
-        # word, we call that acceptable, and select that as our comment
-        break
 
 # Gets a recent image from /r/earthporn
 for submission in reddit.subreddit('earthporn').new():
@@ -85,25 +103,25 @@ image_width, image_height = image.size
 font_size = image_width // 45
 font = ImageFont.truetype(FONT_FILE, font_size)
 
-# Breaks up the comment onto different lines
-letters_per_line = MAX_LETTERS_PER_LINE
-message = '\n'.join(textwrap.wrap(comment, letters_per_line))
-msg_width, msg_height = font.getsize(message)
-# Make sure the writing doesn't overflow the image
-while msg_width > image_width and letters_per_line > 30:
-    letters_per_line -= 1
-    message = '\n'.join(textwrap.wrap(comment, letters_per_line))
-    msg_width, msg_height = font.getsize(message)
+# Go through the most recent comments from /r/gonewild until we find a comment
+# that works for our purposes
+for gw_comment in reddit.subreddit('gonewild').comments():
+    comment = format_comment(gw_comment.body, image_width, font)
+    if comment:
+        # If the comment works for us, we take it and save a link to it
+        comment_url = gw_comment.permalink
+        break
 
-# Draw the text centered onto the image
+# Figure out where to draw the text so it's centered
+msg_width, msg_height = font.getsize(comment)
 text_x = (image_width - msg_width) / 2
 text_y = (image_height - msg_height) / 2
 draw = ImageDraw.Draw(image)
 # Draw the shadow of the text
-draw.text((text_x + font_size // 10, text_y + font_size // 10), message,
+draw.text((text_x + font_size // 10, text_y + font_size // 10), comment,
           SHADOW_COLOR, font)
 # Draw the actual text
-draw.text((text_x, text_y), message, TEXT_COLOR, font)
+draw.text((text_x, text_y), comment, TEXT_COLOR, font)
 
 # Save the image
 image.save(FILENAME)
