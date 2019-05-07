@@ -31,8 +31,9 @@ REDDIT_USER_AGENT = 'script for /u/gwcoepbot to created /r/gwcoepbot content'
 URI = 'http://127.0.0.1:65010/authorize_callback'
 
 # Choose the font that will be used for the image
-FONTS = os.listdir('fonts/')
-FONT_FILE = 'fonts/' + random.choice(FONTS)
+FONT_FOLDER = 'fonts/'
+FONTS = os.listdir(FONT_FOLDER)
+FONT_FILE = FONT_FOLDER + random.choice(FONTS)
 
 # Initialize the list of "naughty" words
 with open('naughty-words.txt', 'r') as naughty_file:
