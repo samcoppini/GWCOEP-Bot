@@ -46,20 +46,17 @@ def format_comment(comment, image_width, font):
         return ""
 
     # Next, we have to make sure the comment contains a bad word
-    found_bad_word = False
     for word in comment.split():
         if word in NAUGHTY_WORDS:
-            found_bad_word = True
             break
-            found_bad_word = True
-            break
-    if not found_bad_word:
+    else:
         return ""
 
     # Breaks up the comment onto different lines
     letters_per_line = MAX_LETTERS_PER_LINE
     message = '\n'.join(textwrap.wrap(comment, letters_per_line))
     msg_width, msg_height = font.getsize(message)
+
     # Make sure the writing doesn't overflow the image
     while msg_width > image_width and letters_per_line > 30:
         letters_per_line -= 1
