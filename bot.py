@@ -3,10 +3,12 @@
 from io import BytesIO
 import logging
 import os
+import random
+import textwrap
 from typing import Set
 from urllib.request import urlopen, HTTPError
 
-from PIL import Image
+from PIL import Image, ImageDraw, ImageFont
 from praw import Reddit
 
 REDDIT_ID = os.getenv('REDDIT_ID')
@@ -16,14 +18,41 @@ REDDIT_PASSWORD = os.getenv('REDDIT_PASSWORD')
 REDDIT_USER_AGENT = 'script for /u/gwcoepbot to created /r/gwcoepbot content'
 
 IMAGES_SUBREDDIT = 'earthporn'
+COMMENTS_SUBREDDIT = 'gonewild'
 IMAGE_EXTENSIONS = {'gif', 'jpg', 'jpeg', 'png', 'tiff', 'webp'}
+FONT_FOLDER = 'fonts'
+FONT_SIZE_FACTOR = 40
+TEXT_COLOR = (255, 255, 255)
+SHADOW_COLOR = (0, 0, 0)
+IMAGE_FILENAME = 'gwcoep.jpg'
+
+COMMENT_MIN_WORDS = 3
+COMMENT_MAX_WORDS = 30
+MAX_LETTERS_PER_LINE = 80
+NAUGHTY_WORDS_FILE = 'naughty-words.txt'
 
 
 class ImageSubmission:
-    def __init__(self, image: Image, title: str, link: str):
+    def __init__(self, image: Image, title: str, link: str) -> None:
         self.image = image
         self.title = title
         self.link = link
+
+    @property
+    def width(self) -> int:
+        return self.image.size[0]
+
+
+class Comment:
+    def __init__(self, text: str, link: str) -> None:
+        self.text = text
+        self.link = link
+
+
+def get_font(font_size: int) -> ImageFont:
+    font_file = random.choice(os.listdir(FONT_FOLDER))
+    font_file = os.path.join(FONT_FOLDER, font_file)
+    return ImageFont.truetype(font_file, font_size)
 
 
 def adjust_image_url(filename: str) -> str:
@@ -38,7 +67,9 @@ def adjust_image_url(filename: str) -> str:
         return filename
 
 
-def get_earthporn_image(reddit: Reddit) -> ImageSubmission:
+def get_image(reddit: Reddit) -> ImageSubmission:
+    logging.debug('Selecting /r/earthporn submission...')
+
     for submission in reddit.subreddit(IMAGES_SUBREDDIT).new():
         image_url = adjust_image_url(submission.url)
         image_title = submission.title
@@ -54,6 +85,76 @@ def get_earthporn_image(reddit: Reddit) -> ImageSubmission:
             logging.warn(f'Unable to open "{image_url}"')
 
 
+def valid_comment(text: str, naughty_words: Set[str]) -> bool:
+    words = text.split()
+
+    if len(words) < COMMENT_MIN_WORDS:
+        logging.debug(f'Rejecting "{text}". Reason: Too short')
+        return False
+
+    if len(words) > COMMENT_MAX_WORDS:
+        logging.debug(f'Rejecting "{text}". Reason: Too long')
+        return False
+
+    if len(set(words) & naughty_words) == 0:
+        logging.debug(f'Rejecting "{text}". Reason: No naughty words')
+        return False
+
+    return True
+
+
+def get_comment(reddit: Reddit) -> Comment:
+    with open(NAUGHTY_WORDS_FILE, 'r') as file:
+        naughty_words = set(file.read().split())
+
+    logging.debug(f'Selecting /r/gonewild comment...')
+
+    for comment in reddit.subreddit(COMMENTS_SUBREDDIT).comments():
+        if valid_comment(comment.body, naughty_words):
+            logging.info(f'Selected "{comment.body}"')
+            return Comment(comment.body, comment.permalink)
+
+
+def format_comment(image: Image, font: ImageFont, comment: str) -> str:
+    letters_per_line = MAX_LETTERS_PER_LINE
+    formatted = '\n'.join(textwrap.wrap(comment, letters_per_line))
+    image_width, image_height = image.size
+    text_width, text_height = font.getsize(formatted)
+
+    while text_width > image_width and letters_per_line > 0:
+        letters_per_line -= 1
+        formatted = '\n'.join(textwrap.wrap(comment, letters_per_line))
+        text_width, text_height = font.getsize(formatted)
+
+    if text_height > image_height or letters_per_line == 0:
+        return None
+
+    return formatted
+
+
+def make_image(image: Image, font: ImageFont, comment: str, size: int) -> bool:
+    formatted = format_comment(image, font, comment)
+
+    if formatted is None:
+        return False
+
+    text_width, text_height = font.getsize(formatted)
+    image_width, image_height = image.size
+
+    # Figure out where to draw the text where it'll be centered
+    text_x = (image_width - text_width) / 2
+    text_y = (image_height - text_height) / 2
+
+    draw = ImageDraw.Draw(image)
+
+    shadow_pos = (text_x + size / 10, text_y + size / 10)
+    draw.text(shadow_pos, comment, SHADOW_COLOR, font)
+    draw.text((text_x, text_y), comment, TEXT_COLOR, font)
+    image.save(IMAGE_FILENAME)
+
+    return True
+
+
 def run_bot():
     reddit = Reddit(client_id=REDDIT_ID,
                     client_secret=REDDIT_SECRET,
@@ -61,10 +162,17 @@ def run_bot():
                     username=REDDIT_USERNAME,
                     password=REDDIT_PASSWORD)
 
-    image = get_earthporn_image(reddit)
+    image = get_image(reddit)
+    font_size = image.width // FONT_SIZE_FACTOR
+    font = get_font(font_size)
+    comment = get_comment(reddit)
+
+    while not make_image(image.image, font, comment.text, font_size):
+        font_size -= 1
+        font = get_font(font_size)
 
 
 if __name__ == '__main__':
     logging.basicConfig(format='%(asctime)s - %(levelname)s - %(message)s',
-                        level=logging.INFO)
+                        level=logging.DEBUG)
     run_bot()
