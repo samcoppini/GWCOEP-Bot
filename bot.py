@@ -4,6 +4,7 @@ from io import BytesIO
 import logging
 import os
 import random
+import re
 import textwrap
 from typing import Set
 from urllib.request import urlopen, HTTPError
@@ -23,6 +24,8 @@ IMGUR_SECRET = os.getenv('IMGUR_SECRET')
 
 IMAGES_SUBREDDIT = 'earthporn'
 COMMENTS_SUBREDDIT = 'gonewild'
+BOT_SUBREDDIT = 'GWCOEPBot'
+
 IMAGE_EXTENSIONS = {'gif', 'jpg', 'jpeg', 'png', 'tiff', 'webp'}
 FONT_FOLDER = 'fonts'
 FONT_SIZE_FACTOR = 40
@@ -35,6 +38,7 @@ IMAGE_DESCRIPTION = 'Do I really need a description?'
 
 COMMENT_MIN_WORDS = 3
 COMMENT_MAX_WORDS = 30
+MAX_WORD_LENGTH = 20
 MAX_LETTERS_PER_LINE = 80
 NAUGHTY_WORDS_FILE = 'naughty-words.txt'
 
@@ -103,6 +107,10 @@ def valid_comment(text: str, naughty_words: Set[str]) -> bool:
         logging.debug(f'Rejecting "{text}". Reason: Too long')
         return False
 
+    if len(max(len(word) for word in words)) > MAX_WORD_LENGTH:
+        logging.debug(f'Rejecting "{text}". Reason: Too long word')
+        return False
+
     if len(set(words) & naughty_words) == 0:
         logging.debug(f'Rejecting "{text}". Reason: No naughty words')
         return False
@@ -128,7 +136,7 @@ def format_comment(image: Image, font: ImageFont, comment: str) -> str:
     image_width, image_height = image.size
     text_width, text_height = font.getsize(formatted)
 
-    while text_width > image_width and letters_per_line > 0:
+    while text_width > image_width and letters_per_line > 1:
         letters_per_line -= 1
         formatted = '\n'.join(textwrap.wrap(comment, letters_per_line))
         text_width, text_height = font.getsize(formatted)
@@ -173,6 +181,35 @@ def upload_to_imgur(imgur: Imgur) -> str:
     return url
 
 
+def make_title(orig_title: str) -> str:
+    # Remove the "[width x height]" and "[OC]" tags from the image's title
+    title = re.subn(r'(\[.*?\]|\(.*?\))', '', orig_title)[0]
+
+    # Remove excess spaces
+    title = ' '.join(title.split())
+
+    # If we somehow managed to delete the entire title, return
+    # the original title
+    if len(title) == 0:
+        return orig_title
+    else:
+        return title
+
+
+def make_reddit_post(reddit: Reddit, comment: Comment,
+                     image: ImageSubmission, url: str):
+    title = make_title(image.title)
+    subreddit = reddit.subreddit('GWCOEPBot')
+    submission = subreddit.submit(title=title, url=url)
+    logging.info(submission)
+
+    credit = f'[Original /r/earthporn post]({image.link})\n\n'
+    credit += f'[Original /r/gonewild comment]({comment.link})'
+    comment = submission.reply(credit)
+
+    logging.info(comment)
+
+
 def run_bot():
     reddit = Reddit(client_id=REDDIT_ID,
                     client_secret=REDDIT_SECRET,
@@ -191,6 +228,7 @@ def run_bot():
 
     imgur = Imgur({'client_id': IMGUR_ID, 'access_token': IMGUR_SECRET})
     uploaded_url = upload_to_imgur(imgur)
+    make_reddit_post(reddit, comment, image, uploaded_url)
 
 
 if __name__ == '__main__':
