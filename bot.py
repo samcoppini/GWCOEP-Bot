@@ -107,7 +107,7 @@ def valid_comment(text: str, naughty_words: Set[str]) -> bool:
         logging.debug(f'Rejecting "{text}". Reason: Too long')
         return False
 
-    if len(max(len(word) for word in words)) > MAX_WORD_LENGTH:
+    if max(len(word) for word in words) > MAX_WORD_LENGTH:
         logging.debug(f'Rejecting "{text}". Reason: Too long word')
         return False
 
