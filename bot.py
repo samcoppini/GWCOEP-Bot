@@ -8,6 +8,7 @@ import textwrap
 from typing import Set
 from urllib.request import urlopen, HTTPError
 
+from imgur_python import Imgur
 from PIL import Image, ImageDraw, ImageFont
 from praw import Reddit
 
@@ -17,6 +18,9 @@ REDDIT_USERNAME = os.getenv('REDDIT_USERNAME')
 REDDIT_PASSWORD = os.getenv('REDDIT_PASSWORD')
 REDDIT_USER_AGENT = 'script for /u/gwcoepbot to created /r/gwcoepbot content'
 
+IMGUR_ID = os.getenv('IMGUR_ID')
+IMGUR_SECRET = os.getenv('IMGUR_SECRET')
+
 IMAGES_SUBREDDIT = 'earthporn'
 COMMENTS_SUBREDDIT = 'gonewild'
 IMAGE_EXTENSIONS = {'gif', 'jpg', 'jpeg', 'png', 'tiff', 'webp'}
@@ -24,7 +28,10 @@ FONT_FOLDER = 'fonts'
 FONT_SIZE_FACTOR = 40
 TEXT_COLOR = (255, 255, 255)
 SHADOW_COLOR = (0, 0, 0)
+
 IMAGE_FILENAME = 'gwcoep.jpg'
+IMAGE_TITLE = 'An upload for /r/GWCOEPBot'
+IMAGE_DESCRIPTION = 'Do I really need a description?'
 
 COMMENT_MIN_WORDS = 3
 COMMENT_MAX_WORDS = 30
@@ -152,7 +159,18 @@ def make_image(image: Image, font: ImageFont, comment: str, size: int) -> bool:
     draw.text((text_x, text_y), comment, TEXT_COLOR, font)
     image.save(IMAGE_FILENAME)
 
+    logging.info(f'Saved file to "{IMAGE_FILENAME}".')
+
     return True
+
+
+def upload_to_imgur(imgur: Imgur) -> str:
+    image = imgur.image_upload(os.path.realpath(IMAGE_FILENAME),
+                               IMAGE_TITLE,
+                               IMAGE_DESCRIPTION)
+    url = image['response']['data']['link']
+    logging.info(f'Uploaded image to {url}.')
+    return url
 
 
 def run_bot():
@@ -171,8 +189,11 @@ def run_bot():
         font_size -= 1
         font = get_font(font_size)
 
+    imgur = Imgur({'client_id': IMGUR_ID, 'access_token': IMGUR_SECRET})
+    uploaded_url = upload_to_imgur(imgur)
+
 
 if __name__ == '__main__':
     logging.basicConfig(format='%(asctime)s - %(levelname)s - %(message)s',
-                        level=logging.DEBUG)
+                        level=logging.INFO)
     run_bot()
