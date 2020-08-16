@@ -201,13 +201,13 @@ def make_reddit_post(reddit: Reddit, comment: Comment,
     title = make_title(image.title)
     subreddit = reddit.subreddit('GWCOEPBot')
     submission = subreddit.submit(title=title, url=url)
-    logging.info(submission)
+    logging.info(f'Created submission at {submission.permalink}.')
 
     credit = f'[Original /r/earthporn post]({image.link})\n\n'
     credit += f'[Original /r/gonewild comment]({comment.link})'
     comment = submission.reply(credit)
 
-    logging.info(comment)
+    logging.info(f'Added credit comment at {comment.permalink}')
 
 
 def run_bot():
