@@ -163,8 +163,8 @@ def make_image(image: Image, font: ImageFont, comment: str, size: int) -> bool:
     draw = ImageDraw.Draw(image)
 
     shadow_pos = (text_x + size / 10, text_y + size / 10)
-    draw.text(shadow_pos, comment, SHADOW_COLOR, font)
-    draw.text((text_x, text_y), comment, TEXT_COLOR, font)
+    draw.text(shadow_pos, formatted, SHADOW_COLOR, font)
+    draw.text((text_x, text_y), formatted, TEXT_COLOR, font)
     image.save(IMAGE_FILENAME)
 
     logging.info(f'Saved file to "{IMAGE_FILENAME}".')
