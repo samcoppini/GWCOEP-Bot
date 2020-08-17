@@ -227,7 +227,7 @@ def run_bot():
         font = get_font(font_size)
 
     imgur = Imgur({'client_id': IMGUR_ID, 'access_token': IMGUR_SECRET})
-    uploaded_url = upload_to_imgur(imgur)
+    uploaded_url = adjust_image_url(upload_to_imgur(imgur))
     make_reddit_post(reddit, comment, image, uploaded_url)
 
 
