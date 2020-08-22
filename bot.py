@@ -34,8 +34,8 @@ SHADOW_COLOR = (0, 0, 0)
 
 IMAGE_FILENAME = 'gwcoep.jpg'
 IMAGE_MODE = 'RGB'
-IMAGE_TITLE = 'An upload for /r/GWCOEPBot'
-IMAGE_DESCRIPTION = 'Do I really need a description?'
+IMAGE_TITLE = 'Submission for /r/GWCOEPBot'
+IMAGE_DESCRIPTION = ''
 
 COMMENT_MIN_WORDS = 3
 COMMENT_MAX_WORDS = 30
