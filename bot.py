@@ -31,7 +31,7 @@ BOT_SUBREDDIT = 'GWCOEPBot'
 
 IMAGE_EXTENSIONS = {'gif', 'jpg', 'jpeg', 'png', 'tiff', 'webp'}
 FONT_FOLDER = 'fonts'
-FONT_SIZE_FACTOR = 40
+FONT_SIZE_FACTOR = 30
 TEXT_COLOR = (255, 255, 255)
 SHADOW_COLOR = (0, 0, 0)
 
@@ -46,6 +46,8 @@ COMMENT_MIN_WORDS = 3
 COMMENT_MAX_WORDS = 30
 MAX_WORD_LENGTH = 20
 MAX_LETTERS_PER_LINE = 80
+MIN_LETTERS_PER_LINE = 60
+TEXT_MAX_SIZE = 0.8
 NAUGHTY_WORDS_FILE = 'naughty-words.txt'
 
 
@@ -97,6 +99,12 @@ def get_image(reddit: Reddit) -> ImageSubmission:
             logging.debug(f'Opening "{image_url}"')
             image_bytes = BytesIO(urlopen(image_url).read())
             image = Image.open(image_bytes)
+            image_width, image_height = image.size
+
+            if image_height > image_width:
+                logging.debug(f'Rejecting image for being more tall than wide')
+                continue
+
             logging.info(f'Selecting {image_url} as image')
             return ImageSubmission(image, image_title, image_link)
         except HTTPError:
@@ -145,14 +153,17 @@ def format_comment(image: Image, font: ImageFont, comment: str) -> str:
     letters_per_line = MAX_LETTERS_PER_LINE
     formatted = '\n'.join(textwrap.wrap(comment, letters_per_line))
     image_width, image_height = image.size
+    image_width *= TEXT_MAX_SIZE
+    image_height *= TEXT_MAX_SIZE
     text_width, text_height = font.getsize(formatted)
 
-    while text_width > image_width and letters_per_line > 1:
+    while text_width > image_width and letters_per_line >= MIN_LETTERS_PER_LINE:
         letters_per_line -= 1
+        logging.debug(f'Decreasing letters per line to {letters_per_line}')
         formatted = '\n'.join(textwrap.wrap(comment, letters_per_line))
         text_width, text_height = font.getsize(formatted)
 
-    if text_height > image_height or letters_per_line == 0:
+    if text_height > image_height or text_width > image_width:
         return None
 
     return formatted
@@ -170,6 +181,10 @@ def make_image(image: Image, font: ImageFont, comment: str, size: int) -> bool:
     # Figure out where to draw the text where it'll be centered
     text_x = (image_width - text_width) / 2
     text_y = (image_height - text_height) / 2
+
+    logging.debug(f'Image dimensions: {image_width} x {image_height}')
+    logging.debug(f'Text dimensions: {text_width} x {text_height}')
+    logging.debug(f'Placing text at {text_x}, {text_y}')
 
     draw = ImageDraw.Draw(image)
 
@@ -254,6 +269,7 @@ def run_bot():
     comment = get_comment(reddit)
 
     while not make_image(image.image, font, comment.text, font_size):
+        logging.debug("Comment can't fit, decreasing font size")
         font_size -= 1
         font = get_font(font_size)
 
