@@ -68,6 +68,7 @@ class Comment:
 def get_font(font_size: int) -> ImageFont:
     font_file = random.choice(os.listdir(FONT_FOLDER))
     font_file = os.path.join(FONT_FOLDER, font_file)
+    logging.info(f'Selecting {font_file} as the font')
     return ImageFont.truetype(font_file, font_size)
 
 
