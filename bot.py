@@ -33,6 +33,7 @@ TEXT_COLOR = (255, 255, 255)
 SHADOW_COLOR = (0, 0, 0)
 
 IMAGE_FILENAME = 'gwcoep.jpg'
+IMAGE_MODE = 'RGB'
 IMAGE_TITLE = 'An upload for /r/GWCOEPBot'
 IMAGE_DESCRIPTION = 'Do I really need a description?'
 
@@ -165,6 +166,11 @@ def make_image(image: Image, font: ImageFont, comment: str, size: int) -> bool:
     shadow_pos = (text_x + size / 10, text_y + size / 10)
     draw.text(shadow_pos, formatted, SHADOW_COLOR, font)
     draw.text((text_x, text_y), formatted, TEXT_COLOR, font)
+
+    if not image.mode == IMAGE_MODE:
+        logging.info(f'Converting image mode from {image.mode} to {IMAGE_MODE}')
+        image.convert(IMAGE_MODE)
+
     image.save(IMAGE_FILENAME)
 
     logging.info(f'Saved file to "{IMAGE_FILENAME}".')
