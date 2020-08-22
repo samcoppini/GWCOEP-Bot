@@ -11,6 +11,7 @@ import time
 from typing import Set
 from urllib.request import urlopen, HTTPError
 
+from emoji import UNICODE_EMOJI
 from imgur_python import Imgur
 from PIL import Image, ImageDraw, ImageFont
 from praw import Reddit
@@ -119,6 +120,10 @@ def valid_comment(text: str, naughty_words: Set[str]) -> bool:
 
     if len(set(words) & naughty_words) == 0:
         logging.debug(f'Rejecting "{text}". Reason: No naughty words')
+        return False
+
+    if len(set(text) & set(UNICODE_EMOJI)) > 0:
+        logging.debug(f'Rejecting "{text}". Reason: Contains emoji')
         return False
 
     return True
