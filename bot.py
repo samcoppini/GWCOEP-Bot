@@ -5,7 +5,9 @@ import logging
 import os
 import random
 import re
+import sys
 import textwrap
+import time
 from typing import Set
 from urllib.request import urlopen, HTTPError
 
@@ -36,6 +38,8 @@ IMAGE_FILENAME = 'gwcoep.jpg'
 IMAGE_MODE = 'RGB'
 IMAGE_TITLE = 'Submission for /r/GWCOEPBot'
 IMAGE_DESCRIPTION = ''
+MAX_IMAGE_UPLOAD_TRIES = 10
+IMAGE_UPLOAD_WAIT_TIME = 30
 
 COMMENT_MIN_WORDS = 3
 COMMENT_MAX_WORDS = 30
@@ -179,12 +183,27 @@ def make_image(image: Image, font: ImageFont, comment: str, size: int) -> bool:
 
 
 def upload_to_imgur(imgur: Imgur) -> str:
-    image = imgur.image_upload(os.path.realpath(IMAGE_FILENAME),
-                               IMAGE_TITLE,
-                               IMAGE_DESCRIPTION)
-    url = image['response']['data']['link']
-    logging.info(f'Uploaded image to {url}.')
-    return url
+    tries = 0
+
+    while tries < MAX_IMAGE_UPLOAD_TRIES:
+        try:
+            image = imgur.image_upload(os.path.realpath(IMAGE_FILENAME),
+                                       IMAGE_TITLE,
+                                       IMAGE_DESCRIPTION)
+            url = image['response']['data']['link']
+            logging.info(f'Uploaded image to {url}.')
+            return url
+        except Exception as ex:
+            # Uploading images to imgur seems kinda flaky. So when it does fail,
+            # we wait a little bit, then try again
+            logging.warn(f'Encountered exception "{ex}" when uploading to imgur')
+            tries += 1
+            time.sleep(IMAGE_UPLOAD_WAIT_TIME)
+
+    # If we reached here, we failed to upload to imgur too many times, so now
+    # we're just giving up
+    logging.error('Failed to upload too many times, giving up')
+    sys.exit(1)
 
 
 def make_title(orig_title: str) -> str:
