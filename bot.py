@@ -8,7 +8,7 @@ import re
 import sys
 import textwrap
 import time
-from typing import Set
+from typing import Set, Tuple
 from urllib.request import urlopen, HTTPError
 
 from emoji import UNICODE_EMOJI
@@ -67,6 +67,17 @@ class Comment:
         self.text = text
         self.link = link
 
+
+def get_text_size(text: str, font: ImageFont) -> Tuple[int, int]:
+    width = 0
+    height = 0
+
+    for line in text.split('\n'):
+        line_width, line_height = font.getsize(line)
+        width = max(line_width, width)
+        height += line_height
+
+    return width, height
 
 def get_font(font_size: int) -> ImageFont:
     font_file = random.choice(os.listdir(FONT_FOLDER))
@@ -155,13 +166,13 @@ def format_comment(image: Image, font: ImageFont, comment: str) -> str:
     image_width, image_height = image.size
     image_width *= TEXT_MAX_SIZE
     image_height *= TEXT_MAX_SIZE
-    text_width, text_height = font.getsize(formatted)
+    text_width, text_height = get_text_size(formatted, font)
 
     while text_width > image_width and letters_per_line >= MIN_LETTERS_PER_LINE:
         letters_per_line -= 1
         logging.debug(f'Decreasing letters per line to {letters_per_line}')
         formatted = '\n'.join(textwrap.wrap(comment, letters_per_line))
-        text_width, text_height = font.getsize(formatted)
+        text_width, text_height = get_text_size(formatted, font)
 
     if text_height > image_height or text_width > image_width:
         return None
@@ -175,7 +186,7 @@ def make_image(image: Image, font: ImageFont, comment: str, size: int) -> bool:
     if formatted is None:
         return False
 
-    text_width, text_height = font.getsize(formatted)
+    text_width, text_height = get_text_size(formatted, font)
     image_width, image_height = image.size
 
     # Figure out where to draw the text where it'll be centered
